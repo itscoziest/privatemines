@@ -1,0 +1,46 @@
+world:
+  name: "mines_world"
+  spacing: 50
+  start_x: 0
+  start_z: 0
+
+mine:
+  default_level: 1
+  max_level: 10
+  default_blocks: "mine-1"
+  plot_height: 50
+  teleport_delay: 3
+
+schematic:
+  folder: "schematics"
+  default_file: "default_mine.schem"
+
+auto_save:
+  enabled: true
+  interval: 300
+
+pool:
+  reuse_deleted: true
+  max_cached: 100
+
+sizes:
+  1: 50
+  2: 75
+  3: 100
+  4: 150
+  5: 200
+  6: 250
+  7: 300
+  8: 350
+  9: 400
+  10: 500
+
+messages:
+  teleporting: "&aTeleporting to your mine in {time} seconds..."
+  teleported: "&aWelcome to your mine!"
+  mine_reset: "&aMine has been reset!"
+  no_mine: "&cYou don't have a mine yet!"
+  no_permission: "&cYou don't have permission!"
+  invalid_level: "&cInvalid mine level!"
+  player_not_found: "&cPlayer not found!"
+  confirm_delete: "&cType /pmine admin delete {player} confirm to delete"

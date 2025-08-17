@@ -1,0 +1,30 @@
+name: PrivateMines
+version: 1.0.0
+main: com.privatemines.PrivateMines
+api-version: 1.17
+author: StrikesDev
+description: High-performance packet-based private mine system
+
+depend:
+  - ProtocolLib
+  - FastAsyncWorldEdit
+
+softdepend:
+  - PlaceholderAPI
+
+commands:
+  pmine:
+    description: Private mines command
+    permission: privatemines.use
+    permission-message: You don't have permission to use this command
+
+permissions:
+  privatemines.use:
+    description: Basic private mines access
+    default: true
+  privatemines.admin:
+    description: Admin commands access
+    default: op
+  privatemines.bypass:
+    description: Bypass mine protection
+    default: op
