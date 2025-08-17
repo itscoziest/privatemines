@@ -26,6 +26,8 @@ public class DataManager {
         loadData();
     }
 
+
+
     public void loadData() {
         dataFile = new File(plugin.getDataFolder(), "data.yml");
         if (!dataFile.exists()) {
@@ -35,6 +37,9 @@ public class DataManager {
         data = YamlConfiguration.loadConfiguration(dataFile);
         loadAllMines();
     }
+
+
+
 
     private void loadAllMines() {
         if (!data.contains("mines")) return;
@@ -61,12 +66,41 @@ public class DataManager {
         }
     }
 
+
+    /**
+     * Save mine data synchronously (for shutdown and high-performance saves)
+     */
+    public void saveMineDataSync(UUID playerUuid, MineData mineData) {
+        try {
+            // Use your existing data storage method
+            // Just save directly without async operations
+            setMineData(playerUuid, mineData);
+
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to save mine data synchronously: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Optimized saveAllData - only async during normal operation
+     */
     public void saveAllData() {
+        if (!plugin.isEnabled()) {
+            // Plugin shutting down - don't create async tasks
+            return;
+        }
+
+        // Only use async during normal operation
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            for (MineData mineData : mineDataCache.values()) {
-                saveMineData(mineData);
+            try {
+                Map<UUID, MineData> allMines = getAllMines();
+                for (Map.Entry<UUID, MineData> entry : allMines.entrySet()) {
+                    saveMineDataSync(entry.getKey(), entry.getValue());
+                }
+                plugin.getLogger().info("Auto-saved " + allMines.size() + " mines");
+            } catch (Exception e) {
+                plugin.getLogger().severe("Error during auto-save: " + e.getMessage());
             }
-            saveDataFile();
         });
     }
 

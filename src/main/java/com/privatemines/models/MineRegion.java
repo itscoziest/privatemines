@@ -6,41 +6,71 @@ import org.bukkit.World;
 public class MineRegion {
 
     private final World world;
-    private final int minX, minY, minZ;
-    private final int maxX, maxY, maxZ;
     private final Location spawnLocation;
 
-    // Grass plot area bounds (calculated from spawn location)
-    private final int grassMinX, grassMinY, grassMinZ;
-    private final int grassMaxX, grassMaxY, grassMaxZ;
+    // Mining area bounds (detected from Gold/Emerald blocks)
+    private final int miningMinX, miningMinY, miningMinZ;
+    private final int miningMaxX, miningMaxY, miningMaxZ;
 
-    public MineRegion(World world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, Location spawnLocation) {
+    // Plot area bounds (detected from Lapis/Netherite blocks)
+    private final int plotMinX, plotMinY, plotMinZ;
+    private final int plotMaxX, plotMaxY, plotMaxZ;
+
+    /**
+     * Constructor for new mines with identifier block detection
+     */
+    public MineRegion(World world,
+                      int miningMinX, int miningMinY, int miningMinZ,
+                      int miningMaxX, int miningMaxY, int miningMaxZ,
+                      int plotMinX, int plotMinY, int plotMinZ,
+                      int plotMaxX, int plotMaxY, int plotMaxZ,
+                      Location spawnLocation) {
         this.world = world;
-        this.minX = Math.min(minX, maxX);
-        this.minY = Math.min(minY, maxY);
-        this.minZ = Math.min(minZ, maxZ);
-        this.maxX = Math.max(minX, maxX);
-        this.maxY = Math.max(minY, maxY);
-        this.maxZ = Math.max(minZ, maxZ);
         this.spawnLocation = spawnLocation;
 
-        // Calculate grass area using exact coordinates from your dev world
-        // Spawn: 1088,106,1272
-        // Grass corner 1: 1053,106,1345 (standing on top)
-        // Grass corner 2: 1123,106,1275 (standing on top)
+        // Mining area bounds (from Gold/Emerald identifier blocks)
+        this.miningMinX = Math.min(miningMinX, miningMaxX);
+        this.miningMinY = Math.min(miningMinY, miningMaxY);
+        this.miningMinZ = Math.min(miningMinZ, miningMaxZ);
+        this.miningMaxX = Math.max(miningMinX, miningMaxX);
+        this.miningMaxY = Math.max(miningMinY, miningMaxY);
+        this.miningMaxZ = Math.max(miningMinZ, miningMaxZ);
+
+        // Plot area bounds (from Lapis/Netherite identifier blocks)
+        this.plotMinX = Math.min(plotMinX, plotMaxX);
+        this.plotMinY = Math.min(plotMinY, plotMaxY);
+        this.plotMinZ = Math.min(plotMinZ, plotMaxZ);
+        this.plotMaxX = Math.max(plotMinX, plotMaxX);
+        this.plotMaxY = Math.max(plotMinY, plotMaxY);
+        this.plotMaxZ = Math.max(plotMinZ, plotMaxZ);
+    }
+
+    /**
+     * Constructor for legacy mines (backwards compatibility)
+     */
+    public MineRegion(World world, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, Location spawnLocation) {
+        this.world = world;
+        this.spawnLocation = spawnLocation;
+
+        // For legacy mines, use the old bounds as mining area
+        this.miningMinX = Math.min(minX, maxX);
+        this.miningMinY = Math.min(minY, maxY);
+        this.miningMinZ = Math.min(minZ, maxZ);
+        this.miningMaxX = Math.max(minX, maxX);
+        this.miningMaxY = Math.max(minY, maxY);
+        this.miningMaxZ = Math.max(minZ, maxZ);
+
+        // Calculate plot area using old logic for legacy compatibility
         int spawnX = spawnLocation.getBlockX();
         int spawnY = spawnLocation.getBlockY();
         int spawnZ = spawnLocation.getBlockZ();
 
-        // Calculate grass area relative to spawn location
-// Your schematic has grass blocks around the spawn area
-        this.grassMinX = spawnX - 50;  // Larger area around spawn
-        this.grassMinY = spawnY - 2;   // Ground level
-        this.grassMinZ = spawnZ - 50;  // Square area around spawn
-        this.grassMaxX = spawnX + 50;  // Larger area around spawn
-        this.grassMaxY = spawnY + 50;  // 50 blocks above
-        this.grassMaxZ = spawnZ + 50;  // Square area around spawn
-
+        this.plotMinX = spawnX - 50;
+        this.plotMinY = spawnY - 2;
+        this.plotMinZ = spawnZ - 50;
+        this.plotMaxX = spawnX + 50;
+        this.plotMaxY = spawnY + 50;
+        this.plotMaxZ = spawnZ + 50;
     }
 
     public boolean isInMiningArea(Location location) {
@@ -50,15 +80,9 @@ public class MineRegion {
         int y = location.getBlockY();
         int z = location.getBlockZ();
 
-        // Mining area is between gold/emerald blocks
-        return x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ;
-    }
-
-    public boolean isInOverallMineArea(Location location) {
-        if (!location.getWorld().equals(world)) return false;
-
-        // Check if in either mining area OR plot area
-        return isInMiningArea(location) || isInPlotArea(location);
+        return x >= miningMinX && x <= miningMaxX &&
+                y >= miningMinY && y <= miningMaxY &&
+                z >= miningMinZ && z <= miningMaxZ;
     }
 
     public boolean isInPlotArea(Location location) {
@@ -68,23 +92,43 @@ public class MineRegion {
         int y = location.getBlockY();
         int z = location.getBlockZ();
 
-        // Plot area is above grass blocks (50 blocks high)
-        return x >= grassMinX && x <= grassMaxX &&
-                y > grassMinY && y <= grassMaxY &&
-                z >= grassMinZ && z <= grassMaxZ;
+        return x >= plotMinX && x <= plotMaxX &&
+                y >= plotMinY && y <= plotMaxY &&
+                z >= plotMinZ && z <= plotMaxZ;
     }
 
-    public boolean isInMineRegion(Location location) {
+    public boolean isInOverallMineArea(Location location) {
+        if (!location.getWorld().equals(world)) return false;
         return isInMiningArea(location) || isInPlotArea(location);
     }
 
-    // Getters
+    public boolean isInMineRegion(Location location) {
+        return isInOverallMineArea(location);
+    }
+
+    // Getters for mining area (backwards compatibility)
     public World getWorld() { return world; }
-    public int getMinX() { return minX; }
-    public int getMinY() { return minY; }
-    public int getMinZ() { return minZ; }
-    public int getMaxX() { return maxX; }
-    public int getMaxY() { return maxY; }
-    public int getMaxZ() { return maxZ; }
+    public int getMinX() { return miningMinX; }
+    public int getMinY() { return miningMinY; }
+    public int getMinZ() { return miningMinZ; }
+    public int getMaxX() { return miningMaxX; }
+    public int getMaxY() { return miningMaxY; }
+    public int getMaxZ() { return miningMaxZ; }
     public Location getSpawnLocation() { return spawnLocation; }
+
+    // Getters for plot area
+    public int getPlotMinX() { return plotMinX; }
+    public int getPlotMinY() { return plotMinY; }
+    public int getPlotMinZ() { return plotMinZ; }
+    public int getPlotMaxX() { return plotMaxX; }
+    public int getPlotMaxY() { return plotMaxY; }
+    public int getPlotMaxZ() { return plotMaxZ; }
+
+    // Debug method
+    public void logBounds() {
+        System.out.println("Mining Area: (" + miningMinX + "," + miningMinY + "," + miningMinZ +
+                ") to (" + miningMaxX + "," + miningMaxY + "," + miningMaxZ + ")");
+        System.out.println("Plot Area: (" + plotMinX + "," + plotMinY + "," + plotMinZ +
+                ") to (" + plotMaxX + "," + plotMaxY + "," + plotMaxZ + ")");
+    }
 }

@@ -2,6 +2,7 @@ package com.privatemines.managers;
 
 import com.privatemines.PrivateMines;
 import com.privatemines.models.MineRegion;
+import com.privatemines.utils.DebugUtils;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -26,11 +27,35 @@ public class SchematicManager {
 
     private final PrivateMines plugin;
 
+    // Fixed offsets from paste origin (where you stood when copying the schematic)
+    // Since you were standing IN the sea lantern, spawn should be at paste origin
+    private static final int SPAWN_OFFSET_X = 0;     // You were standing here
+    private static final int SPAWN_OFFSET_Y = 0;     // You were standing here
+    private static final int SPAWN_OFFSET_Z = 0;     // You were standing here
+
+    // Calculate offsets from where you stood (10,51,224) to actual block positions
+    private static final int GOLD_OFFSET_X = -99;    // -89 - 10 = -99
+    private static final int GOLD_OFFSET_Y = -1;     // 50 - 51 = -1
+    private static final int GOLD_OFFSET_Z = -74;    // 150 - 224 = -74
+
+    private static final int EMERALD_OFFSET_X = 97;   // 107 - 10 = 97
+    private static final int EMERALD_OFFSET_Y = -76;  // -25 - 51 = -76
+    private static final int EMERALD_OFFSET_Z = -270; // -46 - 224 = -270
+
+    // Plot area identifiers
+    private static final int LAPIS_OFFSET_X = -35;    // -25 - 10 = -35
+    private static final int LAPIS_OFFSET_Y = 0;      // 52 - 51 - 1 = 0 (lowered by 1)
+    private static final int LAPIS_OFFSET_Z = 73;     // 297 - 224 = 73
+
+    private static final int NETHERITE_OFFSET_X = 35;  // 45 - 10 = 35
+    private static final int NETHERITE_OFFSET_Y = 50;  // 102 - 51 - 1 = 50 (lowered by 1)
+    private static final int NETHERITE_OFFSET_Z = 3;   // 227 - 224 = 3
+
     public SchematicManager(PrivateMines plugin) {
         this.plugin = plugin;
     }
 
-    public CompletableFuture<MineRegion> pasteSchematic(Location location) {
+    public CompletableFuture<MineRegion> pasteSchematic(Location pasteOrigin) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 // Paste schematic
@@ -42,8 +67,8 @@ public class SchematicManager {
                     clipboard = reader.read();
                 }
 
-                com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(location.getWorld());
-                BlockVector3 to = BlockVector3.at(location.getX(), location.getY(), location.getZ());
+                com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(pasteOrigin.getWorld());
+                BlockVector3 to = BlockVector3.at(pasteOrigin.getX(), pasteOrigin.getY(), pasteOrigin.getZ());
 
                 try (EditSession editSession = WorldEdit.getInstance().newEditSession(weWorld)) {
                     editSession.setFastMode(true);
@@ -57,15 +82,13 @@ public class SchematicManager {
                     Operations.complete(operation);
                 }
 
-                plugin.getLogger().info("Schematic pasted successfully");
+                plugin.getLogger().info("Schematic pasted successfully at " + pasteOrigin);
 
+                // Wait briefly for blocks to settle
+                Thread.sleep(500);
 
-                // Wait a bit for blocks to settle
-                Thread.sleep(1000);
-
-                // Find markers quickly
-                return findMarkers(location);
-
+                // Calculate regions using fixed offsets (INSTANT)
+                return calculateRegionsFromOffsets(pasteOrigin);
 
             } catch (Exception e) {
                 plugin.getLogger().severe("Schematic paste failed: " + e.getMessage());
@@ -74,47 +97,65 @@ public class SchematicManager {
         });
     }
 
-    private static final int GOLD_OFFSET_X = -259;  // 829 - 1088
-    private static final int GOLD_OFFSET_Y = -77;   // 29 - 106
-    private static final int GOLD_OFFSET_Z = -74;   // 1198 - 1272
-    private static final int EMERALD_OFFSET_X = 239; // 1327 - 1088
-    private static final int EMERALD_OFFSET_Y = -1;  // 105 - 106
-    private static final int EMERALD_OFFSET_Z = -572; // 700 - 1272
-
-    private static final int GRASS_MIN_X = -35;  // 1053 - 1088
-    private static final int GRASS_MIN_Y = 0;    // 106 - 106
-    private static final int GRASS_MIN_Z = 3;    // 1275 - 1272
-    private static final int GRASS_MAX_X = 35;   // 1123 - 1088
-    private static final int GRASS_MAX_Y = 0;    // 106 - 106
-    private static final int GRASS_MAX_Z = 73;   // 1345 - 1272
-
-    private MineRegion findMarkers(Location pasteOrigin) {
+    private MineRegion calculateRegionsFromOffsets(Location pasteOrigin) {
         World world = pasteOrigin.getWorld();
 
+        // Calculate exact positions using fixed offsets
+        Location spawnLoc = pasteOrigin.clone().add(SPAWN_OFFSET_X + 0.5, SPAWN_OFFSET_Y + 1, SPAWN_OFFSET_Z + 0.5);
         Location goldLoc = pasteOrigin.clone().add(GOLD_OFFSET_X, GOLD_OFFSET_Y, GOLD_OFFSET_Z);
         Location emeraldLoc = pasteOrigin.clone().add(EMERALD_OFFSET_X, EMERALD_OFFSET_Y, EMERALD_OFFSET_Z);
-        Location spawnLoc = pasteOrigin.clone().add(0.5, 1, 0.5);
+        Location lapisLoc = pasteOrigin.clone().add(LAPIS_OFFSET_X, LAPIS_OFFSET_Y, LAPIS_OFFSET_Z);
+        Location netheriteLoc = pasteOrigin.clone().add(NETHERITE_OFFSET_X, NETHERITE_OFFSET_Y, NETHERITE_OFFSET_Z);
 
-        // Remove the markers
+        DebugUtils.debugf("Offset calculation for paste origin: %s", pasteOrigin);
+        DebugUtils.debugf("Spawn location: %s", spawnLoc);
+        DebugUtils.debugf("Gold location: %s", goldLoc);
+        DebugUtils.debugf("Emerald location: %s", emeraldLoc);
+        DebugUtils.debugf("Lapis location: %s", lapisLoc);
+        DebugUtils.debugf("Netherite location: %s", netheriteLoc);
+
+        // Calculate mining area bounds (between gold and emerald)
+        int miningMinX = Math.min(goldLoc.getBlockX(), emeraldLoc.getBlockX());
+        int miningMinY = Math.min(goldLoc.getBlockY(), emeraldLoc.getBlockY());
+        int miningMinZ = Math.min(goldLoc.getBlockZ(), emeraldLoc.getBlockZ());
+        int miningMaxX = Math.max(goldLoc.getBlockX(), emeraldLoc.getBlockX());
+        int miningMaxY = Math.max(goldLoc.getBlockY(), emeraldLoc.getBlockY());
+        int miningMaxZ = Math.max(goldLoc.getBlockZ(), emeraldLoc.getBlockZ());
+
+        // Calculate plot area bounds (between lapis and netherite)
+        int plotMinX = Math.min(lapisLoc.getBlockX(), netheriteLoc.getBlockX());
+        int plotMinY = Math.min(lapisLoc.getBlockY(), netheriteLoc.getBlockY());
+        int plotMinZ = Math.min(lapisLoc.getBlockZ(), netheriteLoc.getBlockZ());
+        int plotMaxX = Math.max(lapisLoc.getBlockX(), netheriteLoc.getBlockX());
+        int plotMaxY = Math.max(lapisLoc.getBlockY(), netheriteLoc.getBlockY());
+        int plotMaxZ = Math.max(lapisLoc.getBlockZ(), netheriteLoc.getBlockZ());
+
+        DebugUtils.debugf("Mining area: (%d,%d,%d) to (%d,%d,%d)",
+                miningMinX, miningMinY, miningMinZ, miningMaxX, miningMaxY, miningMaxZ);
+        DebugUtils.debugf("Plot area: (%d,%d,%d) to (%d,%d,%d)",
+                plotMinX, plotMinY, plotMinZ, plotMaxX, plotMaxY, plotMaxZ);
+
+        // Remove identifier blocks immediately (using fixed positions)
+        final Location finalGoldLoc = goldLoc;
+        final Location finalEmeraldLoc = emeraldLoc;
+        final Location finalLapisLoc = lapisLoc;
+        final Location finalNetheriteLoc = netheriteLoc;
+
         Bukkit.getScheduler().runTask(plugin, () -> {
-            goldLoc.getBlock().setType(Material.AIR);
-            emeraldLoc.getBlock().setType(Material.AIR);
+            finalGoldLoc.getBlock().setType(Material.AIR);
+            finalEmeraldLoc.getBlock().setType(Material.AIR);
+            finalLapisLoc.getBlock().setType(Material.AIR);
+            finalNetheriteLoc.getBlock().setType(Material.AIR);
+            DebugUtils.debug("Removed all identifier blocks");
         });
 
-        plugin.getLogger().info("Gold marker: " + goldLoc);
-        plugin.getLogger().info("Emerald marker: " + emeraldLoc);
-        plugin.getLogger().info("Spawn point: " + spawnLoc);
-
-        plugin.getLogger().info("Gold marker: " + goldLoc);
-        plugin.getLogger().info("Emerald marker: " + emeraldLoc);
-        plugin.getLogger().info("Spawn point: " + spawnLoc);
-        plugin.getLogger().info("Region bounds: " + goldLoc.getBlockX() + "," + goldLoc.getBlockY() + "," + goldLoc.getBlockZ() +
-                " to " + emeraldLoc.getBlockX() + "," + emeraldLoc.getBlockY() + "," + emeraldLoc.getBlockZ());
-
+        // Create MineRegion with calculated bounds
         return new MineRegion(
                 world,
-                goldLoc.getBlockX(), goldLoc.getBlockY(), goldLoc.getBlockZ(),
-                emeraldLoc.getBlockX(), emeraldLoc.getBlockY(), emeraldLoc.getBlockZ(),
+                miningMinX, miningMinY, miningMinZ,
+                miningMaxX, miningMaxY, miningMaxZ,
+                plotMinX, plotMinY, plotMinZ,
+                plotMaxX, plotMaxY, plotMaxZ,
                 spawnLoc
         );
     }

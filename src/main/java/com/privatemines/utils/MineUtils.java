@@ -4,19 +4,23 @@ import org.bukkit.Location;
 
 public class MineUtils {
 
+    /**
+     * Calculate mine size for levels 1-10 that fit within 197x197 mining area
+     * Progressive scaling from 50x50 to 197x197
+     */
     public static int calculateMineSize(int level) {
         switch (level) {
-            case 1: return 50;
-            case 2: return 75;
-            case 3: return 100;
-            case 4: return 150;
-            case 5: return 200;
-            case 6: return 250;
-            case 7: return 300;
-            case 8: return 350;
-            case 9: return 400;
-            case 10: return 500;
-            default: return 50;
+            case 1: return 50;   // 50x50 - starter size
+            case 2: return 65;   // 65x65 - small expansion
+            case 3: return 80;   // 80x80 - medium growth
+            case 4: return 95;   // 95x95 - getting bigger
+            case 5: return 110;  // 110x110 - halfway point
+            case 6: return 125;  // 125x125 - substantial size
+            case 7: return 140;  // 140x140 - large mine
+            case 8: return 155;  // 155x155 - very large
+            case 9: return 175;  // 175x175 - nearly max
+            case 10: return 197; // 197x197 - maximum size (fits perfectly)
+            default: return 50;  // fallback to level 1
         }
     }
 

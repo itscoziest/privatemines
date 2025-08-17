@@ -1,30 +1,38 @@
 name: PrivateMines
 version: 1.0.0
 main: com.privatemines.PrivateMines
-api-version: 1.17
-author: StrikesDev
-description: High-performance packet-based private mine system
-
-depend:
-  - ProtocolLib
-  - FastAsyncWorldEdit
-
-softdepend:
-  - PlaceholderAPI
+api-version: 1.21
+author: YourName
+description: Private Mines plugin with visitor system
 
 commands:
   pmine:
-    description: Private mines command
-    permission: privatemines.use
-    permission-message: You don't have permission to use this command
+    description: Main PrivateMines command
+    usage: /pmine [subcommand]
+    aliases: [privatemine, pm]
 
 permissions:
   privatemines.use:
-    description: Basic private mines access
+    description: Allows creating and accessing private mines
+    default: true
+  privatemines.visit:
+    description: Allows visiting other players' mines
+    default: true
+  privatemines.toggle:
+    description: Allows toggling visitor access to your mine
+    default: true
+  privatemines.kick:
+    description: Allows kicking visitors from your mine
+    default: true
+  privatemines.reset:
+    description: Allows resetting your own mine
     default: true
   privatemines.admin:
-    description: Admin commands access
+    description: Allows admin commands
     default: op
   privatemines.bypass:
-    description: Bypass mine protection
+    description: Bypasses all mine restrictions
+    default: op
+  privatemines.debug:
+    description: Allows seeing debug messages in chat
     default: op

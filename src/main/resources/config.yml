@@ -1,6 +1,6 @@
 world:
   name: "mines_world"
-  spacing: 50
+  spacing: 600  # 600 blocks apart for safety
   start_x: 0
   start_z: 0
 
@@ -23,17 +23,35 @@ pool:
   reuse_deleted: true
   max_cached: 100
 
+# Border system settings
+border:
+  enabled: true
+
+loading:
+  sound:
+    enabled: true
+    volume: 0.5
+    pitch_high: 1.8  # Higher pitch for faster tempo
+    pitch_low: 1.4   # Higher pitch for faster tempo
+
+# Debug settings
+debug:
+  enabled: false  # Set to true to enable debug messages
+  console: true   # Show debug in console when enabled
+  chat: false     # Show debug in chat when enabled (for admins)
+
+# Updated mine sizes to fit your 197x197 mining area
 sizes:
-  1: 50
-  2: 75
-  3: 100
-  4: 150
-  5: 200
-  6: 250
-  7: 300
-  8: 350
-  9: 400
-  10: 500
+  1: 50   # Level 1: 50x50 (starter)
+  2: 65   # Level 2: 65x65
+  3: 80   # Level 3: 80x80
+  4: 95   # Level 4: 95x95
+  5: 110  # Level 5: 110x110 (halfway)
+  6: 125  # Level 6: 125x125
+  7: 140  # Level 7: 140x140
+  8: 155  # Level 8: 155x155
+  9: 175  # Level 9: 175x175
+  10: 197 # Level 10: 197x197 (maximum, fits perfectly)
 
 messages:
   teleporting: "&aTeleporting to your mine in {time} seconds..."
@@ -44,3 +62,20 @@ messages:
   invalid_level: "&cInvalid mine level!"
   player_not_found: "&cPlayer not found!"
   confirm_delete: "&cType /pmine admin delete {player} confirm to delete"
+  mine_created: "&aYour mine has been created successfully!"
+  mine_loading: "&eLoading your mine..."
+  border_warning: "&cYou've reached the edge of your mine! Teleporting back to safety."
+
+
+  # Loading screen messages (no dots animation)
+  loading_title: "&d&lCreating Private Mine"
+  loading_subtitle: "&fPlease wait..."
+
+  # Visitor system messages
+  visit_usage: "&cUsage: /pmine visit <player>"
+  visit_success: "&aYou are now visiting {player}'s mine!"
+  visit_failed: "&cCannot visit {player}'s mine! (No mine, visitors disabled, or offline)"
+  visitors_enabled: "&aVisitors can now access your mine!"
+  visitors_disabled: "&cVisitors can no longer access your mine!"
+  visitor_kicked: "&cYou were kicked from the mine!"
+  visitor_joined: "&e{player} &ais now visiting your mine!"

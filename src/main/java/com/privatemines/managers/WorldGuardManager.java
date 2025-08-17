@@ -4,7 +4,6 @@ import com.privatemines.PrivateMines;
 import com.privatemines.models.MineRegion;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
-import com.sk89q.worldguard.protection.flags.Flag;
 import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.flags.registry.FlagRegistry;
 import com.sk89q.worldguard.protection.managers.RegionManager;
@@ -44,28 +43,56 @@ public class WorldGuardManager {
 
         try {
             World world = mineRegion.getWorld();
-            RegionManager regionManager = com.sk89q.worldguard.WorldGuard.getInstance()
+            RegionManager regionManager = WorldGuard.getInstance()
                     .getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
 
             if (regionManager == null) return;
 
             String regionName = "mine_" + playerUuid.toString();
 
+            // ONLY create region for MINING AREA - not the entire mine
             BlockVector3 min = BlockVector3.at(mineRegion.getMinX(), mineRegion.getMinY(), mineRegion.getMinZ());
             BlockVector3 max = BlockVector3.at(mineRegion.getMaxX(), mineRegion.getMaxY(), mineRegion.getMaxZ());
 
             ProtectedCuboidRegion region = new ProtectedCuboidRegion(regionName, min, max);
 
-            // Set enchantcore-effects flag to ALLOW
+            // Set enchantcore-effects flag to ALLOW - ONLY in mining area
             if (enchantEffectsFlag != null) {
                 region.setFlag(enchantEffectsFlag, StateFlag.State.ALLOW);
             }
 
             regionManager.addRegion(region);
-            plugin.getLogger().info("Created WorldGuard region for mine: " + regionName);
+            plugin.getLogger().info("Created WorldGuard region (MINING AREA ONLY) for: " + regionName);
 
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to create WorldGuard region: " + e.getMessage());
+        }
+    }
+
+    public void deleteMineRegion(UUID playerUuid) {
+        if (!Bukkit.getPluginManager().isPluginEnabled("WorldGuard")) {
+            return;
+        }
+
+        try {
+            String worldName = plugin.getConfigManager().getWorldName();
+            World world = Bukkit.getWorld(worldName);
+
+            if (world == null) return;
+
+            RegionManager regionManager = WorldGuard.getInstance()
+                    .getPlatform().getRegionContainer().get(BukkitAdapter.adapt(world));
+
+            if (regionManager == null) return;
+
+            String regionName = "mine_" + playerUuid.toString();
+
+            if (regionManager.removeRegion(regionName) != null) {
+                plugin.getLogger().info("Deleted WorldGuard region: " + regionName);
+            }
+
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to delete WorldGuard region: " + e.getMessage());
         }
     }
 }

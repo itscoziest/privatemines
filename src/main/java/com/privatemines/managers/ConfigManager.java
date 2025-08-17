@@ -113,8 +113,23 @@ public class ConfigManager {
         return config.getInt("sizes." + level, 50);
     }
 
+
     public String getMessage(String key) {
-        return config.getString("messages." + key, "&cMessage not found: " + key);
+        String message = config.getString("messages." + key, "&cMessage not found: " + key);
+        return com.privatemines.utils.MessageUtils.colorize(message);
+    }
+
+    // Debug configuration methods
+    public boolean isDebugEnabled() {
+        return config.getBoolean("debug.enabled", false);
+    }
+
+    public boolean isConsoleDebugEnabled() {
+        return config.getBoolean("debug.console", true);
+    }
+
+    public boolean isChatDebugEnabled() {
+        return config.getBoolean("debug.chat", false);
     }
 
     public Map<String, Object> getBlockConfig(String identifier) {

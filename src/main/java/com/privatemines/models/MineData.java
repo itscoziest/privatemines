@@ -40,8 +40,20 @@ public class MineData {
         this.blockIdentifier = blockIdentifier;
     }
 
+    // When loading location from data, ensure world is set
     public Location getLocation() {
-        return location;
+        if (this.location != null && this.location.getWorld() == null) {
+            // Re-set the world if it's null
+            String worldName = "mines_world"; // or get from config
+            org.bukkit.World world = org.bukkit.Bukkit.getWorld(worldName);
+            if (world != null) {
+                this.location = new Location(world,
+                        this.location.getX(),
+                        this.location.getY(),
+                        this.location.getZ());
+            }
+        }
+        return this.location;
     }
 
     public void setLocation(Location location) {

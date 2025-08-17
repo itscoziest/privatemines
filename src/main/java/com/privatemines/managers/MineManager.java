@@ -18,7 +18,11 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import com.privatemines.utils.PacketUtils;
+import com.privatemines.utils.MineDataLoader;
 import com.privatemines.managers.WorldGuardManager;
+
+import com.privatemines.utils.OptimizedMineFillerSystem;
+
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,11 +33,19 @@ public class MineManager {
 
     private final PrivateMines plugin;
     private final Map<UUID, MineRegion> mineRegions;
+    private MineDataLoader dataLoader;
+    private OptimizedMineFillerSystem fillerSystem;
 
     public MineManager(PrivateMines plugin) {
         this.plugin = plugin;
         this.mineRegions = new HashMap<>();
-        loadExistingMines();
+        this.fillerSystem = new OptimizedMineFillerSystem(plugin);
+        this.dataLoader = new MineDataLoader(plugin);
+
+        // Load existing mines with new system
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            dataLoader.loadAllMines();
+        }, 20L); // 1 second delay to ensure everything is initialized
     }
 
     private void loadExistingMines() {
@@ -105,23 +117,44 @@ public class MineManager {
 
     public void deleteMine(UUID playerUuid) {
         MineData mineData = plugin.getDataManager().getMineData(playerUuid);
-        if (mineData == null) return;
-
-        MineRegion region = mineRegions.remove(playerUuid);
-        if (region != null) {
-            // Clear entire mine area
-            for (int x = region.getMinX() - 10; x <= region.getMaxX() + 10; x++) {
-                for (int y = region.getMinY() - 10; y <= region.getMaxY() + 10; y++) {
-                    for (int z = region.getMinZ() - 10; z <= region.getMaxZ() + 10; z++) {
-                        Location loc = new Location(region.getWorld(), x, y, z);
-                        loc.getBlock().setType(Material.AIR);
-                    }
-                }
-            }
-            plugin.getPoolManager().returnLocation(mineData.getLocation());
+        if (mineData == null) {
+            plugin.getLogger().warning("Tried to delete non-existent mine for player: " + playerUuid);
+            return;
         }
 
+        MineRegion region = mineRegions.remove(playerUuid);
+        Location mineLocation = mineData.getLocation();
+
+        plugin.getLogger().info("Deleting mine for player: " + mineData.getOwner());
+
+        // DELETE WORLDGUARD REGION FIRST
+        plugin.getWorldGuardManager().deleteMineRegion(playerUuid);
+
+        // Teleport player out of mine if they're inside
+        org.bukkit.entity.Player player = Bukkit.getPlayer(playerUuid);
+        if (player != null && player.isOnline()) {
+            if (player.getLocation().getWorld().getName().equals(plugin.getConfigManager().getWorldName())) {
+                Location spawn = Bukkit.getWorlds().get(0).getSpawnLocation();
+                player.teleport(spawn);
+                player.sendMessage("§aMine deleted! You've been teleported to spawn.");
+            }
+        }
+
+        // Clear mine area and return location
+        if (mineLocation != null) {
+            plugin.getPoolManager().clearLocationArea(mineLocation, mineData.getOwner());
+            plugin.getPoolManager().returnLocation(mineLocation);
+            plugin.getLogger().info("Mine location queued for clearing and returned to pool: " + mineLocation);
+        }
+
+        // Remove from data storage
         plugin.getDataManager().deleteMineData(playerUuid);
+
+        // Clear tracking data
+        blocksMinedCount.remove(playerUuid);
+        totalBlocksInMine.remove(playerUuid);
+
+        plugin.getLogger().info("Successfully deleted mine for player: " + mineData.getOwner());
     }
 
     public void setMineLevel(UUID playerUuid, int level) {
@@ -134,8 +167,8 @@ public class MineManager {
         mineData.setLevel(level);
         plugin.getDataManager().setMineData(playerUuid, mineData);
 
-        // Immediately refill with new level size
-        fillMineWithBlocks(playerUuid);
+        // Use optimized filling
+        fillerSystem.fillMineOptimized(playerUuid, "LEVEL UPDATE");
 
         plugin.getLogger().info("Updated mine level to " + level + " for " + mineData.getOwner());
     }
@@ -152,8 +185,8 @@ public class MineManager {
         mineData.setBlockIdentifier(blockIdentifier);
         plugin.getDataManager().setMineData(playerUuid, mineData);
 
-        // Immediately refill with new blocks
-        fillMineWithBlocks(playerUuid);
+        // Use optimized filling
+        fillerSystem.fillMineOptimized(playerUuid, "BLOCK TYPE UPDATE");
 
         plugin.getLogger().info("Updated mine blocks to " + blockIdentifier + " for " + mineData.getOwner());
     }
@@ -177,41 +210,7 @@ public class MineManager {
     }
 
     private void fillMineWithBlocks(UUID playerUuid) {
-        MineData mineData = plugin.getDataManager().getMineData(playerUuid);
-        MineRegion region = mineRegions.get(playerUuid);
-
-        if (mineData == null || region == null) {
-            plugin.getLogger().severe("Cannot fill mine - missing data");
-            return;
-        }
-
-        Map<String, Object> blockConfig = plugin.getConfigManager().getBlockConfig(mineData.getBlockIdentifier());
-        int mineLevel = mineData.getLevel();
-        int mineSize = plugin.getConfigManager().getMineSize(mineLevel);
-        int centerX = (region.getMinX() + region.getMaxX()) / 2;
-        int centerZ = (region.getMinZ() + region.getMaxZ()) / 2;
-        int halfSize = mineSize / 2;
-
-        plugin.getLogger().info("FILLING MINE: Level " + mineLevel + " Size " + mineSize + " Center " + centerX + "," + centerZ);
-
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            int filled = 0;
-            for (int x = centerX - halfSize; x <= centerX + halfSize; x++) {
-                for (int y = region.getMinY(); y <= region.getMaxY(); y++) {
-                    for (int z = centerZ - halfSize; z <= centerZ + halfSize; z++) {
-                        Location loc = new Location(region.getWorld(), x, y, z);
-                        Material current = loc.getBlock().getType();
-
-                        if (current != Material.SEA_LANTERN && current != Material.GRASS_BLOCK && current != Material.BEDROCK) {
-                            Material newBlock = getRandomBlock(blockConfig);
-                            loc.getBlock().setType(newBlock);
-                            filled++;
-                        }
-                    }
-                }
-            }
-            plugin.getLogger().info("FILLED " + filled + " BLOCKS FROM " + mineData.getBlockIdentifier());
-        });
+        fillerSystem.fillMineOptimized(playerUuid, "RESET");
     }
 
 
@@ -264,19 +263,107 @@ public class MineManager {
         return Material.STONE;
     }
 
+    /**
+     * Creates region for existing mine data (server restart/reload)
+     */
     private void createRegionForMine(MineData mineData) {
-        int size = mineData.getSize();
-        Location center = mineData.getLocation();
-        int halfSize = size / 2;
+        plugin.getLogger().info("Loading existing mine for " + mineData.getOwner() + " at " + mineData.getLocation());
 
-        MineRegion region = new MineRegion(
-                center.getWorld(),
-                center.getBlockX() - halfSize, center.getBlockY() - 10, center.getBlockZ() - halfSize,
-                center.getBlockX() + halfSize, center.getBlockY() + 20, center.getBlockZ() + halfSize,
-                center
+        // Use the same calculation method as SchematicManager
+        Location pasteOrigin = mineData.getLocation();
+        MineRegion region = calculateRegionsFromMineData(pasteOrigin);
+
+        if (region != null) {
+            mineRegions.put(mineData.getUuid(), region);
+            plugin.getLogger().info("Successfully loaded mine region for " + mineData.getOwner());
+
+            // Create WorldGuard region
+            plugin.getWorldGuardManager().createMineRegion(mineData.getUuid(), region);
+        } else {
+            plugin.getLogger().warning("Failed to load mine region for " + mineData.getOwner());
+        }
+    }
+
+    private MineRegion calculateRegionsFromMineData(Location pasteOrigin) {
+        // Use exact same offsets as SchematicManager
+        final int SPAWN_OFFSET_X = 0;
+        final int SPAWN_OFFSET_Y = 0;
+        final int SPAWN_OFFSET_Z = 0;
+
+        final int GOLD_OFFSET_X = -99;
+        final int GOLD_OFFSET_Y = -1;
+        final int GOLD_OFFSET_Z = -74;
+
+        final int EMERALD_OFFSET_X = 97;
+        final int EMERALD_OFFSET_Y = -76;
+        final int EMERALD_OFFSET_Z = -270;
+
+        final int LAPIS_OFFSET_X = -35;
+        final int LAPIS_OFFSET_Y = 0;
+        final int LAPIS_OFFSET_Z = 73;
+
+        final int NETHERITE_OFFSET_X = 35;
+        final int NETHERITE_OFFSET_Y = 50;
+        final int NETHERITE_OFFSET_Z = 3;
+
+        // Calculate positions
+        Location spawnLoc = pasteOrigin.clone().add(SPAWN_OFFSET_X + 0.5, SPAWN_OFFSET_Y + 1, SPAWN_OFFSET_Z + 0.5);
+        Location goldLoc = pasteOrigin.clone().add(GOLD_OFFSET_X, GOLD_OFFSET_Y, GOLD_OFFSET_Z);
+        Location emeraldLoc = pasteOrigin.clone().add(EMERALD_OFFSET_X, EMERALD_OFFSET_Y, EMERALD_OFFSET_Z);
+        Location lapisLoc = pasteOrigin.clone().add(LAPIS_OFFSET_X, LAPIS_OFFSET_Y, LAPIS_OFFSET_Z);
+        Location netheriteLoc = pasteOrigin.clone().add(NETHERITE_OFFSET_X, NETHERITE_OFFSET_Y, NETHERITE_OFFSET_Z);
+
+        // Calculate bounds
+        int miningMinX = Math.min(goldLoc.getBlockX(), emeraldLoc.getBlockX());
+        int miningMinY = Math.min(goldLoc.getBlockY(), emeraldLoc.getBlockY());
+        int miningMinZ = Math.min(goldLoc.getBlockZ(), emeraldLoc.getBlockZ());
+        int miningMaxX = Math.max(goldLoc.getBlockX(), emeraldLoc.getBlockX());
+        int miningMaxY = Math.max(goldLoc.getBlockY(), emeraldLoc.getBlockY());
+        int miningMaxZ = Math.max(goldLoc.getBlockZ(), emeraldLoc.getBlockZ());
+
+        int plotMinX = Math.min(lapisLoc.getBlockX(), netheriteLoc.getBlockX());
+        int plotMinY = Math.min(lapisLoc.getBlockY(), netheriteLoc.getBlockY());
+        int plotMinZ = Math.min(lapisLoc.getBlockZ(), netheriteLoc.getBlockZ());
+        int plotMaxX = Math.max(lapisLoc.getBlockX(), netheriteLoc.getBlockX());
+        int plotMaxY = Math.max(lapisLoc.getBlockY(), netheriteLoc.getBlockY());
+        int plotMaxZ = Math.max(lapisLoc.getBlockZ(), netheriteLoc.getBlockZ());
+
+        return new MineRegion(
+                pasteOrigin.getWorld(),
+                miningMinX, miningMinY, miningMinZ,
+                miningMaxX, miningMaxY, miningMaxZ,
+                plotMinX, plotMinY, plotMinZ,
+                plotMaxX, plotMaxY, plotMaxZ,
+                spawnLoc
         );
+    }
 
-        mineRegions.put(mineData.getUuid(), region);
+
+    /**
+     * Public method to load a specific player's mine region
+     * Called when player joins and region needs to be loaded
+     */
+    public void loadPlayerMineRegion(UUID playerUuid, MineData mineData) {
+        if (mineRegions.containsKey(playerUuid)) {
+            plugin.getLogger().info("Mine region already loaded for " + mineData.getOwner());
+            return;
+        }
+
+        plugin.getLogger().info("Loading mine region for " + mineData.getOwner());
+
+        // Calculate regions using the same method as createRegionForMine
+        Location pasteOrigin = mineData.getLocation();
+        MineRegion region = calculateRegionsFromMineData(pasteOrigin);
+
+        if (region != null) {
+            mineRegions.put(playerUuid, region);
+            plugin.getLogger().info("Successfully loaded mine region for " + mineData.getOwner());
+
+            // Create WorldGuard region if needed
+            plugin.getWorldGuardManager().createMineRegion(playerUuid, region);
+        } else {
+            plugin.getLogger().warning("Failed to load mine region for " + mineData.getOwner());
+        }
     }
 
     public MineData getMineData(UUID playerUuid) {
@@ -333,4 +420,12 @@ public class MineManager {
             resetMine(playerUuid);
         }
     }
+    public void registerMineRegion(UUID playerUuid, MineRegion region) {
+        mineRegions.put(playerUuid, region);
+    }
+
+    public MineDataLoader getDataLoader() {
+        return dataLoader;
+    }
+
 }
