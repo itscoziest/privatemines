@@ -55,29 +55,21 @@ public class PrivateMines extends JavaPlugin {
             // Cancel all active tasks first
             Bukkit.getScheduler().cancelTasks(this);
 
-            // Save data SYNCHRONOUSLY during shutdown (no async tasks)
+            // CRITICAL FIX: Use the proper synchronous save method
             if (dataManager != null) {
-                getLogger().info("Saving all mine data synchronously...");
+                getLogger().info("Saving all data synchronously during shutdown...");
                 long startTime = System.currentTimeMillis();
 
-                // Get all mine data
-                Map<UUID, com.privatemines.models.MineData> allMines = dataManager.getAllMines();
-
-                // Save each mine synchronously
-                for (Map.Entry<UUID, com.privatemines.models.MineData> entry : allMines.entrySet()) {
-                    try {
-                        dataManager.saveMineDataSync(entry.getKey(), entry.getValue());
-                    } catch (Exception e) {
-                        getLogger().warning("Failed to save mine for " + entry.getKey() + ": " + e.getMessage());
-                    }
-                }
+                // Use the fixed saveAllDataSync method
+                dataManager.saveAllDataSync();
 
                 long duration = System.currentTimeMillis() - startTime;
-                getLogger().info("Saved " + allMines.size() + " mines in " + duration + "ms");
+                getLogger().info("Shutdown save completed in " + duration + "ms");
             }
 
         } catch (Exception e) {
             getLogger().severe("Error during shutdown: " + e.getMessage());
+            e.printStackTrace();
         }
 
         getLogger().info("PrivateMines disabled successfully!");

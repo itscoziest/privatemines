@@ -26,8 +26,6 @@ public class DataManager {
         loadData();
     }
 
-
-
     public void loadData() {
         dataFile = new File(plugin.getDataFolder(), "data.yml");
         if (!dataFile.exists()) {
@@ -37,9 +35,6 @@ public class DataManager {
         data = YamlConfiguration.loadConfiguration(dataFile);
         loadAllMines();
     }
-
-
-
 
     private void loadAllMines() {
         if (!data.contains("mines")) return;
@@ -66,7 +61,6 @@ public class DataManager {
         }
     }
 
-
     /**
      * Save mine data synchronously (for shutdown and high-performance saves)
      */
@@ -86,22 +80,37 @@ public class DataManager {
      */
     public void saveAllData() {
         if (!plugin.isEnabled()) {
-            // Plugin shutting down - don't create async tasks
+            // Plugin shutting down - call synchronous save instead
+            saveAllDataSync();
             return;
         }
 
         // Only use async during normal operation
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                Map<UUID, MineData> allMines = getAllMines();
-                for (Map.Entry<UUID, MineData> entry : allMines.entrySet()) {
-                    saveMineDataSync(entry.getKey(), entry.getValue());
-                }
-                plugin.getLogger().info("Auto-saved " + allMines.size() + " mines");
+                saveAllDataSync();
+                plugin.getLogger().info("Auto-saved all mine data");
             } catch (Exception e) {
                 plugin.getLogger().severe("Error during auto-save: " + e.getMessage());
             }
         });
+    }
+
+    /**
+     * Synchronous save method for shutdown and critical saves
+     */
+    public void saveAllDataSync() {
+        try {
+            Map<UUID, MineData> allMines = getAllMines();
+            for (Map.Entry<UUID, MineData> entry : allMines.entrySet()) {
+                saveMineDataSync(entry.getKey(), entry.getValue());
+            }
+            // Force save the file
+            saveDataFile();
+            plugin.getLogger().info("Synchronously saved " + allMines.size() + " mines");
+        } catch (Exception e) {
+            plugin.getLogger().severe("Error during synchronous save: " + e.getMessage());
+        }
     }
 
     public void saveMineData(MineData mineData) {
@@ -114,6 +123,9 @@ public class DataManager {
         Location loc = mineData.getLocation();
         String locStr = loc.getWorld().getName() + ", " + loc.getX() + ", " + loc.getY() + ", " + loc.getZ();
         data.set(path + ".location", locStr);
+
+        // CRITICAL FIX: Actually save the file to disk!
+        saveDataFile();
     }
 
     public void saveDataFile() {
@@ -145,5 +157,10 @@ public class DataManager {
 
     public Map<UUID, MineData> getAllMines() {
         return new HashMap<>(mineDataCache);
+    }
+
+    // Add method to expose data configuration for location saving
+    public org.bukkit.configuration.file.FileConfiguration getData() {
+        return data;
     }
 }
