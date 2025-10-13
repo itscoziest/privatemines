@@ -214,54 +214,8 @@ public class MineManager {
     }
 
     private void fillMineWithBlocks(UUID playerUuid, boolean forceReplace) {
-        MineData mineData = plugin.getDataManager().getMineData(playerUuid);
-        MineRegion region = mineRegions.get(playerUuid);
-
-        if (mineData == null || region == null) {
-            plugin.getLogger().severe("Cannot fill mine - missing data");
-            return;
-        }
-
-        Map<String, Object> blockConfig = plugin.getConfigManager().getBlockConfig(mineData.getBlockIdentifier());
-        int mineLevel = mineData.getLevel();
-        int mineSize = plugin.getConfigManager().getMineSize(mineLevel);
-        int centerX = (region.getMinX() + region.getMaxX()) / 2;
-        int centerZ = (region.getMinZ() + region.getMaxZ()) / 2;
-        int halfSize = mineSize / 2;
-
-        plugin.getLogger().info("FILLING MINE: Level " + mineLevel + " Size " + mineSize + " Center " + centerX + "," + centerZ);
-
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            int filled = 0;
-            for (int x = centerX - halfSize; x <= centerX + halfSize; x++) {
-                for (int y = region.getMinY(); y <= region.getMaxY(); y++) {
-                    for (int z = centerZ - halfSize; z <= centerZ + halfSize; z++) {
-                        Location loc = new Location(region.getWorld(), x, y, z);
-                        Material current = loc.getBlock().getType();
-
-                        // Different logic based on operation type
-                        boolean shouldReplace = false;
-
-                        if (forceReplace) {
-                            // For /pmine reset - only replace AIR blocks
-                            shouldReplace = (current == Material.AIR);
-                        } else {
-                            // For setlevel/setblock - replace all mineable blocks
-                            shouldReplace = (current != Material.SEA_LANTERN &&
-                                    current != Material.GRASS_BLOCK &&
-                                    current != Material.BEDROCK);
-                        }
-
-                        if (shouldReplace) {
-                            Material newBlock = getRandomBlock(blockConfig);
-                            loc.getBlock().setType(newBlock);
-                            filled++;
-                        }
-                    }
-                }
-            }
-            plugin.getLogger().info("FILLED " + filled + " BLOCKS FROM " + mineData.getBlockIdentifier());
-        });
+        // Use the enhanced filler system
+        fillerSystem.fillMineEnhanced(playerUuid, forceReplace ? "RESET" : "FILL");
     }
 
 
