@@ -134,72 +134,71 @@ public class OptimizedMineFillerSystem {
                                             int borderMinX, int borderMaxX, int borderMinZ, int borderMaxZ,
                                             Map<String, Object> blockConfig) {
 
-        // This Y-level is now correctly treated as the bedrock floor.
-        int floorY = region.getMinY() - 1;
-        int endY = region.getMaxY();
+        // Define Y-levels for clarity and correctness
+        int bedrockFloorY = region.getMinY() - 1; // The Y-level for the solid bedrock floor
+        int mineBottomY = region.getMinY();     // The first Y-level of the mineable blocks
+        int mineTopY = region.getMaxY();          // The last Y-level of the mineable blocks
 
-        // Calculate bedrock wall area (3 blocks around the air border)
+        // Calculate the outer bounds for the bedrock container (walls and floor)
         int wallMinX = borderMinX - 1;
         int wallMaxX = borderMaxX + 1;
         int wallMinZ = borderMinZ - 1;
         int wallMaxZ = borderMaxZ + 1;
 
-        // 1. Create the complete bedrock container (walls AND floor).
-        // This loop creates the entire "cup" shape from the floor level (floorY) all the way up.
-        for (int y = floorY; y <= endY; y++) {
+        // 1. Create the solid bedrock floor one block below the mining area.
+        for (int x = wallMinX; x <= wallMaxX; x++) {
+            for (int z = wallMinZ; z <= wallMaxZ; z++) {
+                new Location(region.getWorld(), x, bedrockFloorY, z).getBlock().setType(Material.BEDROCK, false);
+            }
+        }
+
+        // 2. Create the bedrock walls on top of the floor, from the bottom to the top of the mine.
+        for (int y = mineBottomY; y <= mineTopY; y++) {
             // North wall (3 blocks thick)
             for (int x = wallMinX; x <= wallMaxX; x++) {
                 for (int z = wallMinZ; z <= wallMinZ + 2; z++) {
-                    Location loc = new Location(region.getWorld(), x, y, z);
-                    loc.getBlock().setType(Material.BEDROCK, false);
+                    new Location(region.getWorld(), x, y, z).getBlock().setType(Material.BEDROCK, false);
                 }
             }
-
             // South wall (3 blocks thick)
             for (int x = wallMinX; x <= wallMaxX; x++) {
                 for (int z = wallMaxZ - 2; z <= wallMaxZ; z++) {
-                    Location loc = new Location(region.getWorld(), x, y, z);
-                    loc.getBlock().setType(Material.BEDROCK, false);
+                    new Location(region.getWorld(), x, y, z).getBlock().setType(Material.BEDROCK, false);
                 }
             }
-
             // West wall (3 blocks thick)
             for (int z = wallMinZ; z <= wallMaxZ; z++) {
                 for (int x = wallMinX; x <= wallMinX + 2; x++) {
-                    Location loc = new Location(region.getWorld(), x, y, z);
-                    loc.getBlock().setType(Material.BEDROCK, false);
+                    new Location(region.getWorld(), x, y, z).getBlock().setType(Material.BEDROCK, false);
                 }
             }
-
             // East wall (3 blocks thick)
             for (int z = wallMinZ; z <= wallMaxZ; z++) {
                 for (int x = wallMaxX - 2; x <= wallMaxX; x++) {
-                    Location loc = new Location(region.getWorld(), x, y, z);
-                    loc.getBlock().setType(Material.BEDROCK, false);
+                    new Location(region.getWorld(), x, y, z).getBlock().setType(Material.BEDROCK, false);
                 }
             }
         }
 
-        // 2. Clear the interior area with air, STARTING ONE BLOCK ABOVE THE FLOOR.
-        // This prevents the bedrock floor from being overwritten.
+        // 3. Clear the interior (air border + mining area) to prepare for filling.
+        // This happens above the bedrock floor.
         for (int x = borderMinX; x <= borderMaxX; x++) {
-            for (int y = floorY; y <= endY; y++) { // Changed: Start at floorY (not floorY + 1)
+            for (int y = mineBottomY; y <= mineTopY; y++) {
                 for (int z = borderMinZ; z <= borderMaxZ; z++) {
-                    Location loc = new Location(region.getWorld(), x, y, z);
-                    loc.getBlock().setType(Material.AIR, false);
+                    new Location(region.getWorld(), x, y, z).getBlock().setType(Material.AIR, false);
                 }
             }
         }
 
-        // 3. Fill the mining area with ore, also STARTING ONE BLOCK ABOVE THE FLOOR.
+        // 4. Fill the central mining area with ores.
+        // This also happens above the bedrock floor, from the very bottom of the mineable area.
         for (int x = miningMinX; x <= miningMaxX; x++) {
-            for (int y = floorY + 1; y <= endY; y++) { // Start at floorY + 1 (leave floorY as air)
+            for (int y = mineBottomY; y <= mineTopY; y++) {
                 for (int z = miningMinZ; z <= miningMaxZ; z++) {
                     Location loc = new Location(region.getWorld(), x, y, z);
-                    Material currentBlock = loc.getBlock().getType();
 
-                    // Remove identifier blocks instead of covering them
-                    if (currentBlock == Material.GOLD_BLOCK || currentBlock == Material.EMERALD_BLOCK) {
+                    // This check for identifier blocks is fine to keep.
+                    if (loc.getBlock().getType() == Material.GOLD_BLOCK || loc.getBlock().getType() == Material.EMERALD_BLOCK) {
                         loc.getBlock().setType(Material.AIR, false);
                         continue;
                     }
@@ -210,6 +209,7 @@ public class OptimizedMineFillerSystem {
             }
         }
     }
+
 
     private void createSmartBedrockWalls(MineRegion region, int miningMinX, int miningMaxX, int miningMinZ, int miningMaxZ) {
         // Calculate border area (1 block around mining)
