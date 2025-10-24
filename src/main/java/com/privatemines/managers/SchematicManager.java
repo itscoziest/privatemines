@@ -84,11 +84,36 @@ public class SchematicManager {
 
                 plugin.getLogger().info("Schematic pasted successfully at " + pasteOrigin);
 
-                // Wait briefly for blocks to settle
+// Wait briefly for blocks to settle
                 Thread.sleep(500);
 
-                // Calculate regions using fixed offsets (INSTANT)
-                return calculateRegionsFromOffsets(pasteOrigin);
+// Calculate regions using fixed offsets (INSTANT)
+                MineRegion region = calculateRegionsFromOffsets(pasteOrigin);
+
+// Replace ALL gold and emerald blocks in the entire schematic area with bedrock
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    int replacedBlocks = 0;
+
+                    // Search the entire pasted area (approximate 200x200x100 region)
+                    for (int x = -150; x <= 150; x++) {
+                        for (int y = -80; y <= 80; y++) {
+                            for (int z = -300; z <= 300; z++) {
+                                Location loc = pasteOrigin.clone().add(x, y, z);
+                                Material blockType = loc.getBlock().getType();
+
+                                // Replace gold and emerald with bedrock
+                                if (blockType == Material.GOLD_BLOCK || blockType == Material.EMERALD_BLOCK) {
+                                    loc.getBlock().setType(Material.BEDROCK, false);
+                                    replacedBlocks++;
+                                }
+                            }
+                        }
+                    }
+
+                    plugin.getLogger().info("Replaced " + replacedBlocks + " gold/emerald blocks with bedrock");
+                }, 10L);
+
+                return region;
 
             } catch (Exception e) {
                 plugin.getLogger().severe("Schematic paste failed: " + e.getMessage());
@@ -141,13 +166,17 @@ public class SchematicManager {
         final Location finalLapisLoc = lapisLoc;
         final Location finalNetheriteLoc = netheriteLoc;
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
-            finalGoldLoc.getBlock().setType(Material.AIR);
-            finalEmeraldLoc.getBlock().setType(Material.AIR);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            // Gold and Emerald become BEDROCK (mining area identifiers)
+            finalGoldLoc.getBlock().setType(Material.BEDROCK);
+            finalEmeraldLoc.getBlock().setType(Material.BEDROCK);
+
+            // Lapis and Netherite become AIR (plot area identifiers)
             finalLapisLoc.getBlock().setType(Material.AIR);
             finalNetheriteLoc.getBlock().setType(Material.AIR);
-            DebugUtils.debug("Removed all identifier blocks");
-        });
+
+            DebugUtils.debug("Replaced identifier blocks - gold/emerald to bedrock, lapis/netherite to air");
+        }, 2L); // 2 ticks delay = 0.1 seconds
 
         // Create MineRegion with calculated bounds
         return new MineRegion(

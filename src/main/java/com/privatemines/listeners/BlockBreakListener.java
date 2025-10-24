@@ -5,6 +5,7 @@ import com.privatemines.handlers.AutoSellHandler;
 import com.privatemines.handlers.MineAccessHandler;
 import com.privatemines.models.MineData;
 import com.privatemines.models.MineRegion;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -45,7 +46,7 @@ public class BlockBreakListener implements Listener {
         // Not in any mine - cancel
         if (region == null) {
             event.setCancelled(true);
-            player.sendMessage("§cYou cannot break blocks here!");
+            player.sendMessage(ChatColor.RED + "You cannot break blocks here!");
             return;
         }
 
@@ -57,7 +58,7 @@ public class BlockBreakListener implements Listener {
 
         if (!hasAccess) {
             event.setCancelled(true);
-            player.sendMessage("§cThis is not your mine!");
+            player.sendMessage(ChatColor.RED + "This is not your mine!");
             return;
         }
 
@@ -68,7 +69,7 @@ public class BlockBreakListener implements Listener {
             handlePlotAreaBreak(event, player, mineOwner);
         } else {
             event.setCancelled(true);
-            player.sendMessage("§cYou cannot break blocks in this area!");
+            player.sendMessage(ChatColor.RED + "You cannot break blocks in this area!");
         }
     }
 
@@ -91,7 +92,7 @@ public class BlockBreakListener implements Listener {
         if (!blockConfig.containsKey(blockType.name())) {
             // This is NOT a mine block (structure block, etc.) - prevent breaking
             event.setCancelled(true);
-            player.sendMessage("§cYou cannot break structure blocks!");
+            player.sendMessage(ChatColor.RED + "You cannot break structure blocks!");
             return;
         }
 
@@ -109,14 +110,14 @@ public class BlockBreakListener implements Listener {
         // Never allow grass breaking
         if (event.getBlock().getType() == Material.GRASS_BLOCK) {
             event.setCancelled(true);
-            player.sendMessage("§cYou cannot break grass blocks!");
+            player.sendMessage(ChatColor.RED + "You cannot break grass blocks!");
             return;
         }
 
         // Only mine owner can break in plot area
         if (!mineOwner.equals(player.getUniqueId()) && !player.hasPermission("privatemines.bypass")) {
             event.setCancelled(true);
-            player.sendMessage("§cOnly the mine owner can build in the plot area!");
+            player.sendMessage(ChatColor.RED + "Only the mine owner can build in the plot area!");
             return;
         }
 

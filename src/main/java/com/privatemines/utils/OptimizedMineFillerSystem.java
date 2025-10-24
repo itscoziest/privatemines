@@ -1,6 +1,5 @@
 package com.privatemines.utils;
 
-import com.fastasyncworldedit.core.FaweAPI;
 import com.privatemines.PrivateMines;
 import com.privatemines.models.MineData;
 import com.privatemines.models.MineRegion;
@@ -11,9 +10,9 @@ import com.sk89q.worldedit.function.pattern.RandomPattern;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.world.block.BlockState;
-import com.sk89q.worldedit.world.block.BlockType;
 import com.sk89q.worldedit.world.block.BlockTypes;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -64,13 +63,13 @@ public class OptimizedMineFillerSystem {
         // Notify player
         Player player = Bukkit.getPlayer(playerUuid);
         if (player != null && player.isOnline()) {
-            player.sendMessage("§c⚠ Mine " + operation + " in progress... Please wait!");
-            player.sendMessage("§eThis may take a moment depending on mine size.");
+            player.sendMessage(ChatColor.RED + "⚠ Mine " + operation + " in progress... Please wait!");
+            player.sendMessage(ChatColor.YELLOW + "This may take a moment depending on mine size.");
         }
 
         // Start filling task
         FillingTask task = new FillingTask(playerUuid, blockConfig,
-                fillMinX, fillMaxX, region.getMinY(), region.getMaxY(), fillMinZ, fillMaxZ,
+                fillMinX, fillMaxX, region.getMinY() - 1, region.getMaxY(), fillMinZ, fillMaxZ,
                 region.getWorld(), operation);
         activeTasks.put(playerUuid, task);
         task.runTaskTimer(plugin, 1L, 1L);
@@ -111,7 +110,7 @@ public class OptimizedMineFillerSystem {
 
         Player player = Bukkit.getPlayer(playerUuid);
         if (player != null && player.isOnline()) {
-            player.sendMessage("§aCreating mining area...");
+            player.sendMessage(ChatColor.GREEN + "Creating mining area...");
         }
 
         // Simple and fast - just create the mining area with air border
@@ -124,7 +123,7 @@ public class OptimizedMineFillerSystem {
             long duration = System.currentTimeMillis() - startTime;
 
             if (player != null && player.isOnline()) {
-                player.sendMessage("§a✓ Mining area created in " + duration + "ms!");
+                player.sendMessage(ChatColor.GREEN + "✓ Mining area created in " + duration + "ms!");
             }
 
             plugin.getLogger().info("Mining area fill completed in " + duration + "ms");
@@ -135,8 +134,8 @@ public class OptimizedMineFillerSystem {
                                             int borderMinX, int borderMaxX, int borderMinZ, int borderMaxZ,
                                             Map<String, Object> blockConfig) {
 
-        // Use the same Y calculation as the system (from gold/emerald blocks)
-        int startY = region.getMinY();
+        // This Y-level is now correctly treated as the bedrock floor.
+        int floorY = region.getMinY() - 1;
         int endY = region.getMaxY();
 
         // Calculate bedrock wall area (3 blocks around the air border)
@@ -145,8 +144,9 @@ public class OptimizedMineFillerSystem {
         int wallMinZ = borderMinZ - 1;
         int wallMaxZ = borderMaxZ + 1;
 
-        // 1. Create bedrock walls around the border area
-        for (int y = startY; y <= endY; y++) {
+        // 1. Create the complete bedrock container (walls AND floor).
+        // This loop creates the entire "cup" shape from the floor level (floorY) all the way up.
+        for (int y = floorY; y <= endY; y++) {
             // North wall (3 blocks thick)
             for (int x = wallMinX; x <= wallMaxX; x++) {
                 for (int z = wallMinZ; z <= wallMinZ + 2; z++) {
@@ -180,9 +180,10 @@ public class OptimizedMineFillerSystem {
             }
         }
 
-        // 2. Clear the entire border area with air
+        // 2. Clear the interior area with air, STARTING ONE BLOCK ABOVE THE FLOOR.
+        // This prevents the bedrock floor from being overwritten.
         for (int x = borderMinX; x <= borderMaxX; x++) {
-            for (int y = startY; y <= endY; y++) {
+            for (int y = floorY; y <= endY; y++) { // Changed: Start at floorY (not floorY + 1)
                 for (int z = borderMinZ; z <= borderMaxZ; z++) {
                     Location loc = new Location(region.getWorld(), x, y, z);
                     loc.getBlock().setType(Material.AIR, false);
@@ -190,11 +191,19 @@ public class OptimizedMineFillerSystem {
             }
         }
 
-        // 3. Fill ONLY the mining area with mining blocks
+        // 3. Fill the mining area with ore, also STARTING ONE BLOCK ABOVE THE FLOOR.
         for (int x = miningMinX; x <= miningMaxX; x++) {
-            for (int y = startY; y <= endY; y++) {
+            for (int y = floorY + 1; y <= endY; y++) { // Start at floorY + 1 (leave floorY as air)
                 for (int z = miningMinZ; z <= miningMaxZ; z++) {
                     Location loc = new Location(region.getWorld(), x, y, z);
+                    Material currentBlock = loc.getBlock().getType();
+
+                    // Remove identifier blocks instead of covering them
+                    if (currentBlock == Material.GOLD_BLOCK || currentBlock == Material.EMERALD_BLOCK) {
+                        loc.getBlock().setType(Material.AIR, false);
+                        continue;
+                    }
+
                     Material newBlock = getRandomBlock(blockConfig);
                     loc.getBlock().setType(newBlock, false);
                 }
@@ -412,8 +421,8 @@ public class OptimizedMineFillerSystem {
 
             Player player = Bukkit.getPlayer(playerUuid);
             if (player != null && player.isOnline()) {
-                player.sendMessage("§a✓ Mine created in " + duration + "ms with perfect TPS!");
-                player.sendMessage("§eMining area is open at the top!");
+                player.sendMessage(ChatColor.GREEN + "✓ Mine created in " + duration + "ms with perfect TPS!");
+                player.sendMessage(ChatColor.YELLOW + "Mining area is open at the top!");
             }
 
             plugin.getLogger().info("Ultra-optimized fill completed in " + duration + "ms - " + blocksPlaced + " blocks");
@@ -457,7 +466,7 @@ public class OptimizedMineFillerSystem {
             BlockVector3 clearMin = BlockVector3.at(borderMinX, region.getMinY() + shellThickness, borderMinZ);
             BlockVector3 clearMax = BlockVector3.at(borderMaxX, region.getMaxY() - 1, borderMaxZ);
 
-// Step 4: Fill ONLY the mining area with mining blocks (no ceiling)
+            // Step 4: Fill ONLY the mining area with mining blocks (no ceiling)
             BlockVector3 miningMin = BlockVector3.at(miningMinX, region.getMinY() + shellThickness, miningMinZ);
             BlockVector3 miningMax = BlockVector3.at(miningMaxX, region.getMaxY() - 1, miningMaxZ);
             CuboidRegion miningRegion = new CuboidRegion(weWorld, miningMin, miningMax);
@@ -683,7 +692,7 @@ public class OptimizedMineFillerSystem {
                 Player player = Bukkit.getPlayer(playerUuid);
                 if (player != null && player.isOnline()) {
                     int progress = (int) ((double) blocksPlaced / totalEstimated * 100);
-                    player.sendMessage("§6" + operation + " progress: " + Math.min(progress, 100) + "%");
+                    player.sendMessage(ChatColor.GOLD + "" + operation + " progress: " + Math.min(progress, 100) + "%");
                 }
             }
 
@@ -691,7 +700,7 @@ public class OptimizedMineFillerSystem {
             if (currentX > maxX) {
                 Player player = Bukkit.getPlayer(playerUuid);
                 if (player != null && player.isOnline()) {
-                    player.sendMessage("§aMine " + operation.toLowerCase() + " completed in " +
+                    player.sendMessage(ChatColor.GREEN + "Mine " + operation.toLowerCase() + " completed in " +
                             (this.getTaskId() / 20.0) + " seconds! (" + blocksPlaced + " blocks)");
                 }
 

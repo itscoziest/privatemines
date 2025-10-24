@@ -35,20 +35,16 @@ public class MineLoadingSystem {
         String subtitle = plugin.getConfigManager().getMessage("loading_subtitle");
         boolean soundEnabled = plugin.getConfigManager().getConfig().getBoolean("loading.sound.enabled", true);
 
-        // Send initial title
         sendTitle(player, title, subtitle);
 
-        // Start loading session
-        LoadingSession session = new LoadingSession();
-        activeSessions.put(playerId, session);
-
-        // Start sound loop if enabled
+// Play level up sound ONCE
         if (soundEnabled) {
-            startSoundLoop(player, session);
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
         }
 
-        // Start subtitle animation
-        startSubtitleAnimation(player, session);
+// Create session (for tracking, but no tasks)
+        LoadingSession session = new LoadingSession();
+        activeSessions.put(playerId, session);
 
         DebugUtils.debug("Started loading experience for " + player.getName());
     }
@@ -61,14 +57,6 @@ public class MineLoadingSystem {
         LoadingSession session = activeSessions.remove(playerId);
 
         if (session != null) {
-            // Cancel all tasks
-            if (session.soundTask != null && !session.soundTask.isCancelled()) {
-                session.soundTask.cancel();
-            }
-            if (session.subtitleTask != null && !session.subtitleTask.isCancelled()) {
-                session.subtitleTask.cancel();
-            }
-
             // Clear title/subtitle
             clearTitle(player);
 
@@ -76,62 +64,6 @@ public class MineLoadingSystem {
         }
     }
 
-    /**
-     * Start the suspense sound loop (Hypixel-style) - Faster tempo
-     */
-    private void startSoundLoop(Player player, LoadingSession session) {
-        // Get sound config
-        float volume = (float) plugin.getConfigManager().getConfig().getDouble("loading.sound.volume", 0.5);
-        float pitchHigh = (float) plugin.getConfigManager().getConfig().getDouble("loading.sound.pitch_high", 1.8);
-        float pitchLow = (float) plugin.getConfigManager().getConfig().getDouble("loading.sound.pitch_low", 1.4);
-
-        session.soundTask = new BukkitRunnable() {
-            private boolean highPitch = true;
-
-            @Override
-            public void run() {
-                if (!player.isOnline()) {
-                    this.cancel();
-                    return;
-                }
-
-                // Alternate between high and low pitch notes for suspense effect
-                float pitch = highPitch ? pitchHigh : pitchLow;
-
-                // Use note block sounds for that classic Minecraft/Hypixel feel
-                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, volume, pitch);
-
-                // Switch pitch for next iteration
-                highPitch = !highPitch;
-            }
-        }.runTaskTimer(plugin, 0L, 6L); // Faster: Every 0.3 seconds (6 ticks) instead of 0.5
-    }
-
-    /**
-     * Start simple static subtitle (no dots animation)
-     */
-    private void startSubtitleAnimation(Player player, LoadingSession session) {
-        // Just send static subtitle once - no animation needed
-        String title = plugin.getConfigManager().getMessage("loading_title");
-        String subtitle = plugin.getConfigManager().getMessage("loading_subtitle");
-        sendTitle(player, title, subtitle);
-
-        // Optional: Update title every few seconds to keep it visible
-        session.subtitleTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (!player.isOnline()) {
-                    this.cancel();
-                    return;
-                }
-
-                // Just refresh the same title/subtitle
-                String title = plugin.getConfigManager().getMessage("loading_title");
-                String subtitle = plugin.getConfigManager().getMessage("loading_subtitle");
-                sendTitle(player, title, subtitle);
-            }
-        }.runTaskTimer(plugin, 40L, 40L); // Refresh every 2 seconds
-    }
 
     /**
      * Send title and subtitle to player
@@ -163,7 +95,5 @@ public class MineLoadingSystem {
      * Data class to hold loading session info
      */
     private static class LoadingSession {
-        BukkitTask soundTask;
-        BukkitTask subtitleTask;
     }
 }

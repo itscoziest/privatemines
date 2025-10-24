@@ -80,8 +80,9 @@ public class MineRegion {
         int y = location.getBlockY();
         int z = location.getBlockZ();
 
+        // Mining area starts 1 block above the identifier blocks (above bedrock floor)
         return x >= miningMinX && x <= miningMaxX &&
-                y >= miningMinY && y <= miningMaxY &&
+                y >= miningMinY && y <= miningMaxY &&  // Keep as miningMinY (no +1)
                 z >= miningMinZ && z <= miningMaxZ;
     }
 

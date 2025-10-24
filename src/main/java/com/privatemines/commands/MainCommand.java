@@ -3,6 +3,7 @@ package com.privatemines.commands;
 import com.privatemines.PrivateMines;
 import com.privatemines.commands.admin.*;
 import com.privatemines.commands.player.*;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -104,21 +105,21 @@ public class MainCommand implements CommandExecutor {
     }
 
     private void sendHelpMessage(CommandSender sender) {
-        sender.sendMessage("§6§lPrivateMines Commands:");
-        sender.sendMessage("§e/pmine §7- Teleport to your mine");
-        sender.sendMessage("§e/pmine help §7- Show this help menu");
-        sender.sendMessage("§e/pmine reset §7- Reset your mine");
-        sender.sendMessage("§e/pmine visit <player> §7- Visit another player's mine");
-        sender.sendMessage("§e/pmine kick <player/all> §7- Kick visitors from your mine");
-        sender.sendMessage("§e/pmine toggle visitor §7- Toggle visitor access to your mine");
+        sender.sendMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "PrivateMines Commands:");
+        sender.sendMessage(ChatColor.YELLOW + "/pmine " + ChatColor.GRAY + "- Teleport to your mine");
+        sender.sendMessage(ChatColor.YELLOW + "/pmine help " + ChatColor.GRAY + "- Show this help menu");
+        sender.sendMessage(ChatColor.YELLOW + "/pmine reset " + ChatColor.GRAY + "- Reset your mine");
+        sender.sendMessage(ChatColor.YELLOW + "/pmine visit <player> " + ChatColor.GRAY + "- Visit another player's mine");
+        sender.sendMessage(ChatColor.YELLOW + "/pmine kick <player/all> " + ChatColor.GRAY + "- Kick visitors from your mine");
+        sender.sendMessage(ChatColor.YELLOW + "/pmine toggle visitor " + ChatColor.GRAY + "- Toggle visitor access to your mine");
     }
 
     private void sendAdminHelp(CommandSender sender) {
-        sender.sendMessage("§c§lPrivateMines Admin Commands:");
-        sender.sendMessage("§e/pmine admin help §7- Show admin commands");
-        sender.sendMessage("§e/pmine admin reset <player> §7- Reset player's mine");
-        sender.sendMessage("§e/pmine admin setlevel <player> <level> §7- Set mine level");
-        sender.sendMessage("§e/pmine admin setblock <player> <identifier> §7- Set mine blocks");
-        sender.sendMessage("§e/pmine admin delete <player> §7- Delete player's mine");
+        sender.sendMessage(ChatColor.RED + "" + ChatColor.BOLD + "PrivateMines Admin Commands:");
+        sender.sendMessage(ChatColor.YELLOW + "/pmine admin help " + ChatColor.GRAY + "- Show admin commands");
+        sender.sendMessage(ChatColor.YELLOW + "/pmine admin reset <player> " + ChatColor.GRAY + "- Reset player's mine");
+        sender.sendMessage(ChatColor.YELLOW + "/pmine admin setlevel <player> <level> " + ChatColor.GRAY + "- Set mine level");
+        sender.sendMessage(ChatColor.YELLOW + "/pmine admin setblock <player> <identifier> " + ChatColor.GRAY + "- Set mine blocks");
+        sender.sendMessage(ChatColor.YELLOW + "/pmine admin delete <player> " + ChatColor.GRAY + "- Delete player's mine");
     }
 }

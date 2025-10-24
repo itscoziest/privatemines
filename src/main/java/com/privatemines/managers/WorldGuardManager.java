@@ -51,7 +51,7 @@ public class WorldGuardManager {
             String regionName = "mine_" + playerUuid.toString();
 
             // ONLY create region for MINING AREA - not the entire mine
-            BlockVector3 min = BlockVector3.at(mineRegion.getMinX(), mineRegion.getMinY(), mineRegion.getMinZ());
+            BlockVector3 min = BlockVector3.at(mineRegion.getMinX(), mineRegion.getMinY() - 1, mineRegion.getMinZ());
             BlockVector3 max = BlockVector3.at(mineRegion.getMaxX(), mineRegion.getMaxY(), mineRegion.getMaxZ());
 
             ProtectedCuboidRegion region = new ProtectedCuboidRegion(regionName, min, max);

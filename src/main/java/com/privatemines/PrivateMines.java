@@ -9,6 +9,7 @@ import org.bukkit.Bukkit;
 import com.privatemines.handlers.AutoSellHandler;
 import com.privatemines.handlers.MineAccessHandler;
 import org.bukkit.plugin.java.JavaPlugin;
+import com.privatemines.commands.player.FlyCommand;
 import java.util.Map;
 import java.util.UUID;
 
@@ -97,6 +98,7 @@ public class PrivateMines extends JavaPlugin {
 
     private void registerCommands() {
         getCommand("pmine").setExecutor(new MainCommand(this));
+        getCommand("pmfly").setExecutor(new FlyCommand(this));
     }
 
     private void registerListeners() {
@@ -105,6 +107,9 @@ public class PrivateMines extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new BlockBreakListener(this, mineAccessHandler, autoSellHandler), this);
         Bukkit.getPluginManager().registerEvents(new BlockPlaceListener(this, mineAccessHandler), this);
         Bukkit.getPluginManager().registerEvents(new PlayerMoveListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new NoFallDamageListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new PhantomPreventListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new WorldChangeListener(this), this);
     }
 
     private void startTasks() {
@@ -157,4 +162,5 @@ public class PrivateMines extends JavaPlugin {
     public PrivateMinesAPI getAPI() {
         return api;
     }
+
 }

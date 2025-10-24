@@ -10,6 +10,11 @@ commands:
     description: Main PrivateMines command
     usage: /pmine [subcommand]
     aliases: [privatemine, pm]
+  pmfly:
+    description: Toggle fly mode in private mines world
+    usage: /pmfly
+    aliases: [fly, f]
+    permission: privatemines.fly
 
 permissions:
   privatemines.use:
@@ -36,3 +41,6 @@ permissions:
   privatemines.debug:
     description: Allows seeing debug messages in chat
     default: op
+  privatemines.fly:
+    description: Allows fly in private mines world
+    default: false
